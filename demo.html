@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>MOSAIC Carousel — Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<style>
+  body { margin: 0; background: #0B0C0E; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 16px; box-sizing: border-box; font-family: -apple-system, sans-serif; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const ITEMS = [
+  { src: "assets/mosaic-logo.png", title: "MOSAIC", caption: "Crafting discoveries." },
+  { src: "https://images.unsplash.com/photo-1512909006721-3d6018887383?w=900&q=80", title: "Emerald Cut", caption: "Precision-faceted, deep clarity." },
+  { src: "https://images.unsplash.com/photo-1518544866330-4d8fbaf83f30?w=900&q=80", title: "Amethyst Line", caption: "Violet undertone, warm gold trim." },
+  { src: "https://images.unsplash.com/photo-1601121141461-9d6647bca1ed?w=900&q=80", title: "Verdigris Series", caption: "Teal and bronze, brushed finish." },
+];
+
+const FACET_CLIPS = [
+  "polygon(0 0, 100% 0, 100% 100%, 0 100%)",
+  "polygon(0 0, 100% 0, 78% 100%, 0 100%)",
+  "polygon(0 0, 100% 0, 100% 68%, 22% 100%, 0 78%)",
+  "polygon(12% 0, 100% 0, 100% 100%, 0 100%, 0 30%)",
+];
+
+function MosaicCarousel({ items = ITEMS, autoPlayMs = 5000 }) {
+  const [index, setIndex] = useState(0);
+  const [prevIndex, setPrevIndex] = useState(null);
+  const timerRef = useRef(null);
+  const count = items.length;
+
+  const goTo = useCallback((next) => {
+    setPrevIndex(index);
+    setIndex(((next % count) + count) % count);
+  }, [index, count]);
+
+  const next = useCallback(() => goTo(index + 1), [goTo, index]);
+  const prev = useCallback(() => goTo(index - 1), [goTo, index]);
+
+  useEffect(() => {
+    if (!autoPlayMs) return;
+    timerRef.current = setInterval(() => {
+      setIndex((i) => { setPrevIndex(i); return (i + 1) % count; });
+    }, autoPlayMs);
+    return () => clearInterval(timerRef.current);
+  }, [autoPlayMs, count]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setPrevIndex(null), 700);
+    return () => clearTimeout(t);
+  }, [index]);
+
+  const current = items[index];
+  const facetClip = FACET_CLIPS[index % FACET_CLIPS.length];
+
+  return (
+    <div tabIndex={0} onKeyDown={(e) => { if (e.key === "ArrowRight") next(); if (e.key === "ArrowLeft") prev(); }}
+      style={{ fontFamily: "Georgia, serif", background: "#15161A", color: "#EDE7DA", borderRadius: 4, padding: "clamp(20px,4vw,40px)", maxWidth: 860, margin: "0 auto", outline: "none" }}>
+      <style>{`
+        .mc-frame { position: relative; aspect-ratio: 16/9; overflow: hidden; background: #1D1F24; border: 1px solid rgba(183,146,77,0.35); }
+        .mc-layer { position: absolute; inset: 0; }
+        .mc-layer img { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(0.92) contrast(1.02); }
+        .mc-facet-in { animation: mcFacetIn 620ms cubic-bezier(.22,.9,.28,1) forwards; }
+        .mc-facet-out { animation: mcFacetOut 620ms cubic-bezier(.5,0,.75,.2) forwards; }
+        @keyframes mcFacetIn { from { clip-path: inset(0 0 0 100%); transform: scale(1.02);} to { clip-path: inset(0 0 0 0%); transform: scale(1);} }
+        @keyframes mcFacetOut { from { opacity: 1; } to { opacity: 0; } }
+        .mc-btn { background: transparent; border: 1px solid rgba(237,231,218,0.25); color: #EDE7DA; width: 40px; height: 40px; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .mc-btn:hover { border-color: #B7924D; }
+        .mc-dot { width: 26px; height: 3px; background: rgba(237,231,218,0.22); border: none; cursor: pointer; padding: 0; clip-path: polygon(6% 0, 100% 0, 94% 100%, 0 100%); }
+        .mc-dot[aria-current="true"] { background: #B7924D; }
+      `}</style>
+      <div className="mc-frame">
+        {prevIndex !== null && <div className="mc-layer mc-facet-out" style={{ zIndex: 1 }}><img src={items[prevIndex].src} alt="" /></div>}
+        <div key={index} className="mc-layer mc-facet-in" style={{ zIndex: 2, clipPath: facetClip }}><img src={current.src} alt={current.title} /></div>
+        <div style={{ position: "absolute", inset: 0, zIndex: 3, pointerEvents: "none", clipPath: facetClip, boxShadow: "inset 0 0 0 1px rgba(183,146,77,0.55)" }} />
+        <button aria-label="Previous" onClick={prev} className="mc-btn" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", zIndex: 4 }}>‹</button>
+        <button aria-label="Next" onClick={next} className="mc-btn" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", zIndex: 4 }}>›</button>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 18, gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <p style={{ fontFamily: "sans-serif", fontSize: 13, letterSpacing: "0.06em", textTransform: "uppercase", color: "#8A8D97", margin: 0 }}>{String(index+1).padStart(2,"0")} / {String(count).padStart(2,"0")}</p>
+          <h3 style={{ fontSize: "clamp(20px,2.6vw,28px)", margin: "4px 0" }}>{current.title}</h3>
+          <p style={{ fontFamily: "sans-serif", fontSize: 13, color: "#8A8D97", margin: 0 }}>{current.caption}</p>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {items.map((_, i) => <button key={i} className="mc-dot" aria-current={i === index} onClick={() => goTo(i)} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<MosaicCarousel />);
+</script>
+</body>
+</html>
